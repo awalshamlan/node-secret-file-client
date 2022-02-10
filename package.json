@@ -1,0 +1,27 @@
+{
+  "name": "secretfileclient",
+  "version": "1.0.0",
+  "description": "A node flie client which allows setting limits in terms of (file age in ms, number of times the file may be downloaded, and number of errors the file is allowed to experience). Once one of these limits is reached; the file is removed from the file system and is cleared from memory.",
+  "main": "./build/index.js",
+  "scripts": {
+    "test": "jest --runInBand"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ocean-rey/node-secret-file-client.git"
+  },
+  "keywords": [
+    "npm",
+    "file",
+    "client",
+    "secret",
+    "temporary",
+    "temp"
+  ],
+  "author": "@ocean_rey",
+  "license": "GPL-2.0-only",
+  "bugs": {
+    "url": "https://github.com/ocean-rey/node-secret-file-client/issues"
+  },
+  "homepage": "https://github.com/ocean-rey/node-secret-file-client#readme"
+}

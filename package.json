@@ -4,7 +4,9 @@
   "description": "A node flie client which allows setting limits in terms of (file age in ms, number of times the file may be downloaded, and number of errors the file is allowed to experience). Once one of these limits is reached; the file is removed from the file system and is cleared from memory.",
   "main": "./build/index.js",
   "scripts": {
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "compile": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "prepublish": "npm run compile"
   },
   "repository": {
     "type": "git",
@@ -23,5 +25,20 @@
   "bugs": {
     "url": "https://github.com/ocean-rey/node-secret-file-client/issues"
   },
-  "homepage": "https://github.com/ocean-rey/node-secret-file-client#readme"
+  "homepage": "https://github.com/ocean-rey/node-secret-file-client#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.16.8",
+    "@babel/core": "^7.16.7",
+    "@babel/plugin-transform-modules-commonjs": "^7.16.8",
+    "@babel/preset-typescript": "^7.16.7",
+    "@types/jest": "^27.4.0",
+    "@typescript-eslint/eslint-plugin": "^5.9.1",
+    "@typescript-eslint/parser": "^5.9.1",
+    "eslint": "^8.6.0",
+    "eslint-plugin-promise": "^6.0.0",
+    "jest": "^27.4.7",
+    "ts-jest": "^27.1.2",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.4"
+  }
 }

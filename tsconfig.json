@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "types":["node"],
+    "target": "es6",
+    "module": "ES2020",
+    "outDir": "./lib/esm",
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "declaration": true
+  },
+  "include": [
+    "./src"
+  ]
+}

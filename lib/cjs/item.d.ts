@@ -20,6 +20,7 @@ export default class FileCounter extends EventEmitter {
     dead: boolean;
     timeOfBirth: number;
     timeOfDeath: number;
+    deathCertificate: Promise<DeathCertificate> | undefined;
     constructor(parent: FileClient, srcPath: fs.PathLike);
     _init(srcPath: fs.PathLike): Promise<void>;
     getLifeStatus(): {

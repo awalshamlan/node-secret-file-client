@@ -54,18 +54,15 @@ export async function generateFileName(srcPath: fs.PathLike) {
     const hex = hashSum.digest("hex");
     return hex;
   } catch (err) {
-    console.error("Error getting hash of File Buffer!");
     throw err;
   }
 }
 
 async function writeToDisk(srcPath: fs.PathLike, dstPath: fs.PathLike) {
-  console.log(`Writing to disk at ${dstPath} from ${srcPath}`);
   return new Promise((resolve, reject) => {
     try {
       fs.createReadStream(srcPath).pipe(
         fs.createWriteStream(dstPath).on("finish", () => {
-          console.log("Write complete");
           resolve(true);
         })
       );
@@ -93,7 +90,6 @@ export default class FileCounter extends EventEmitter {
   deathCertificate: Promise<DeathCertificate> | undefined // is undefined until birth
   constructor(parent: FileClient, srcPath: fs.PathLike) {
     super();
-    console.log("Constructor");
     // make sure parent conditions hold
     if (!parent) {
       throw errors.orphanError;
@@ -109,7 +105,6 @@ export default class FileCounter extends EventEmitter {
   }
 
   async _init(srcPath: fs.PathLike) {
-    console.log("_init");
     // generate path:
     this.fileHash = await generateFileName(srcPath);
     this._filePath = `${FileClient.tempFolder}/${this.fileHash}`;
@@ -147,7 +142,6 @@ export default class FileCounter extends EventEmitter {
   }
 
   _kill(causeOfDeath: string) {
-    console.log(`reached kill function with cause of death: ${causeOfDeath}`);
     this.dead = true;
     this.timeOfDeath = new Date().getTime();
     this.emit("death", causeOfDeath);
@@ -175,7 +169,6 @@ export default class FileCounter extends EventEmitter {
 
   _incDownload = () => {
     this._downloadCount++;
-    console.log(this.dead);
     assert.strictEqual(
       this.dead,
       false,
@@ -216,10 +209,6 @@ export default class FileCounter extends EventEmitter {
         this._incDownload();
         return fileReadStream;
       } catch (err) {
-        console.log(
-          `Error creating read stream for file at FileClient.items[${this.fileHash}]`
-        );
-        console.error(err);
         this._incError();
         throw err;
       }
@@ -245,20 +234,16 @@ class PromiseQueue {
   ) {
     return new Promise<DeathCertificate>((resolve, reject) => {
       this.queue.push({ promise, resolve, reject, file });
-      console.log("Enqueued");
       this.dequeue();
     });
   }
 
   static dequeue() {
-    console.log("Dequeue");
     if (this.pendingPormise) {
-      console.log("Promise pending");
       return false;
     }
     const item = this.queue.shift();
     if (!item) {
-      console.log("Nothing to dequeue");
       return false;
     }
     try {
@@ -266,20 +251,17 @@ class PromiseQueue {
       item
         .promise(item.file)
         .then((value) => {
-          console.log(value);
           this.pendingPormise = false;
           item.resolve(value);
           this.resolved.push(value);
           this.dequeue();
         })
         .catch((err) => {
-          console.log(err);
           this.pendingPormise = false;
           item.reject(err);
           this.dequeue();
         });
     } catch (err) {
-      console.log(err);
       this.pendingPormise = false;
       item.reject(err ?? "Error");
       this.dequeue();

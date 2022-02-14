@@ -42,15 +42,12 @@ export default class FileClient extends EventEmitter {
     try {
       FileClient.tempFolder = path.resolve(dir);
     } catch (err) {
-      console.error("Not a valid path!");
       throw err;
     }
     try {
       fs.mkdir(FileClient.tempFolder, () => {
-        console.log(`Temp Folder created at ${FileClient.tempFolder}`);
       });
     } catch (err) {
-      console.error("Error creating temp folder!");
       throw err;
     }
     this.items = {};
@@ -86,8 +83,6 @@ export default class FileClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       var newFile = new FileCounter(this, srcPath);
       newFile.on("birth", () => {
-        console.log("New file born.");
-        console.log(newFile);
         this.items[newFile.fileHash] = newFile;
         resolve(newFile.fileHash);
       });

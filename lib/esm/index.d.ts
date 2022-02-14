@@ -21,7 +21,11 @@ export default class FileClient extends EventEmitter {
     };
     static tempFolder: string;
     constructor({ dir, limits: { downloadLimit, errorLimit, ageLimit }, }: ConstructorParameters);
-    updateLimits(limits: ConstructorParameters["limits"]): void;
+    updateLimits(limits: {
+        ageLimit?: number;
+        downloadLimit?: number;
+        errorLimit?: number;
+    }): void;
     addFile(srcPath: fs.PathLike): Promise<string>;
     getFile(hash: string): fs.ReadStream;
 }

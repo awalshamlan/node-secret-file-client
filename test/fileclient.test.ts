@@ -60,9 +60,9 @@ function writetoStream(
 
 describe("Bespoke file client", () => {
   const testFileSize = 500;
-  const fileClientDir = "./test/file-client-dir";
-  const downloadedFilesDir = "./test/download-dir";
-  const fileName = "./test/test-file";
+  const fileClientDir = `${process.cwd()}/test/file-client-dir`;
+  const downloadedFilesDir = `${process.cwd()}/test/download-dir`;
+  const fileName = `${process.cwd()}/test/test-file`;
   var testFileClient: FileClient;
   // prepare dummy file + directories
   beforeAll(async () => {
@@ -211,18 +211,6 @@ describe("Bespoke file client", () => {
       expect(
         await generateFileName(`${downloadedFilesDir}/downloadedFile`)
       ).toBe(testFileHash);
-      // get the new hash and then compare to the original file.
-      // this doesn't work because of differing file names
-      //expect(streamCompare(testReader, reader)).toBe(0);
-      /*     expect(
-        JSON.stringify(testFileClient.items[testFileHash].getLifeStatus())
-      ).toBe(
-        JSON.stringify({
-          stalenessCount: 0,
-          downloadCount: 1,
-          errorCount: 0,
-        })
-      ); */
     });
   });
   describe("Aging file", () => {
@@ -233,39 +221,23 @@ describe("Bespoke file client", () => {
         downloadLimit: 1,
         errorLimit: 1,
         ageLimit: 20000,
-      }); // update the limits so a file can only exist for 10 seconds
-      expect(JSON.stringify(FileClient.limits)).toBe(
-        JSON.stringify({
-          age: 20000,
-          downloads: 1,
-          errors: 1,
-        })
-      );
+      });
+      expect(FileClient.limits.age).toBe(20000);
+      expect(FileClient.limits.downloads).toBe(1);
+      expect(FileClient.limits.errors).toBe(1);
     });
     test("Add a file with new limits", async () => {
       testFileHash = await testFileClient.addFile(fileName);
-      console.log(testFileHash);
-      // expect a string
-      /*       expect(testFileHash).toMatch(await generateFileName(fileName));
-      expect(
-        JSON.stringify(testFileClient.items[testFileHash].getLifeStatus())
-      ).toBe(
-        JSON.stringify({
-          stalenessCount: 0,
-          downloadCount: 0,
-          errorCount: 0,
-        })
-      ); */
     });
     test("age the file", async () => {
       agingFile = testFileClient.items[testFileHash];
       await new Promise<void>((resolve, reject) => {
-        agingFile.on("death", (cause) => {
-          expect(cause).toBe("old age");
+        agingFile.deathCertificate.then((deathCertificate) => {
+          expect(deathCertificate.causeOfDeath).toBe("old age");
           expect(
             Math.abs(
-              agingFile.timeOfDeath -
-                agingFile.timeOfBirth -
+              deathCertificate.timeOfDeath -
+                deathCertificate.timeOfBirth -
                 FileClient.limits.age
             ) // thankfully js arithmatic prescendence allows this
           ).toBeLessThan(1000);
@@ -273,11 +245,139 @@ describe("Bespoke file client", () => {
         });
       });
     }, 30000);
-    test("fail to get an agead file", async () => {
+    test("fail to get an aged file", async () => {
       expect(testFileClient.items[testFileHash]).toBeUndefined();
       expect(agingFile.dead).toBeTruthy();
       expect(() => testFileClient.getFile(testFileHash)).toThrow();
     });
+  });
+  describe("upload and retrieve 2 files asynchronously", () => {
+    const firstFileName = `${process.cwd()}/test/test-file-1`;
+    const secondFileName = `${process.cwd()}/test/test-file-2`;
+    var firstFileHash: string;
+    var secondFileHash: string;
+    var birthDelta: number;
+    var deathDelta: number;
+    beforeAll(async () => {
+      // update the limits again; as we confirmed worked earlier
+      testFileClient.updateLimits({ downloadLimit: 5 });
+      // if the paid of files doesn't exist, create it
+      if (!fs.existsSync(firstFileName)) {
+        const writer = fs.createWriteStream(firstFileName);
+        await new Promise<void>((resolve, reject) => {
+          writetoStream(testFileSize, writer, async () => {
+            console.log(`Wrote ${testFileSize} bytes to ${firstFileName}`);
+            resolve();
+          });
+        });
+      }
+      if (!fs.existsSync(secondFileName)) {
+        const writer = fs.createWriteStream(secondFileName);
+        await new Promise<void>((resolve, reject) => {
+          writetoStream(testFileSize, writer, async () => {
+            console.log(`Wrote ${testFileSize} bytes to ${secondFileName}`);
+            resolve();
+          });
+        });
+      }
+    });
+    afterAll(() => {
+      fs.unlink(firstFileName, (err) => {
+        if (err) throw err;
+      });
+      fs.unlink(secondFileName, (err) => {
+        if (err) throw err;
+      });
+    });
+    test("upload 2 files.", async () => {
+      var startTime = Date.now();
+      var firstFileEnd: number;
+      var secondFileEnd: number;
+      const writeFirstFile = testFileClient
+        .addFile(firstFileName)
+        .then((hash) => {
+          firstFileHash = hash;
+          console.log(
+            `Uploaded first file after  ${Date.now() - startTime} ms`
+          );
+        });
+      const writeSecondFile = testFileClient
+        .addFile(secondFileName)
+        .then((hash) => {
+          secondFileHash = hash;
+          console.log(
+            `Uploaded second file after ${Date.now() - startTime} ms`
+          );
+        });
+      await Promise.all([writeFirstFile, writeSecondFile]).then(() => {
+        birthDelta = Math.abs(firstFileEnd - secondFileEnd);
+      });
+    });
+    test("get both files", async () => {
+      const firstFileReadStream = testFileClient.getFile(firstFileHash);
+      const secondFileReadStream = testFileClient.getFile(secondFileHash);
+      expect(
+        testFileClient.items[firstFileHash].getLifeStatus().downloadCount
+          .current
+      ).toBe(1);
+      expect(
+        testFileClient.items[secondFileHash].getLifeStatus().downloadCount
+          .current
+      ).toBe(1);
+    });
+    test("age both to death", async () => {
+      var firstFileDead = false;
+      var secondFileDead = false;
+      var firstFileTimeOfBirth =
+        testFileClient.items[firstFileHash].timeOfBirth;
+      var secondFileTimeOfBirth =
+        testFileClient.items[secondFileHash].timeOfBirth;
+      var firstFileTimeOfDeath: number;
+      var secondFileTimeOfDeath: number;
+      await new Promise<void>((resolve, reject) => {
+        testFileClient.items[firstFileHash].deathCertificate.then(
+          (certificate) => {
+            firstFileDead = true;
+            firstFileTimeOfDeath = certificate.timeOfDeath;
+            expect(certificate.causeOfDeath).toBe("old age");
+
+            if (firstFileDead && secondFileDead) {
+              deathDelta = Math.abs(
+                secondFileTimeOfDeath - firstFileTimeOfDeath
+              );
+              resolve();
+            }
+          }
+        );
+        testFileClient.items[secondFileHash].deathCertificate.then(
+          (certificate) => {
+            secondFileDead = true;
+            secondFileTimeOfDeath = certificate.timeOfDeath;
+            expect(certificate.causeOfDeath).toBe("old age");
+
+            if (firstFileDead && secondFileDead) {
+              deathDelta = Math.abs(
+                secondFileTimeOfDeath - firstFileTimeOfDeath
+              );
+              resolve();
+            }
+          }
+        );
+      });
+      expect(
+        Math.abs(
+          firstFileTimeOfDeath - firstFileTimeOfBirth - FileClient.limits.age
+        )
+      ).toBeLessThan(1000);
+      expect(
+        Math.abs(
+          secondFileTimeOfDeath - secondFileTimeOfBirth - FileClient.limits.age
+        )
+      ).toBeLessThan(1000);
+      expect(Math.abs(deathDelta - birthDelta)).toBeLessThan(100); // death difference should be roughly equal to birth difference. only allow 100ms discrepency
+      expect(testFileClient.items[firstFileHash]).toBeUndefined();
+      expect(testFileClient.items[secondFileHash]).toBeUndefined();
+    }, 60000); // longer timeout because i expect strange behaviour
   });
   // this whole thing needs to be rewritten
 });

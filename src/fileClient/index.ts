@@ -17,7 +17,7 @@ type ConstructorParameters = {
   limits: {
     downloadLimit: number;
     errorLimit: number;
-    ageLimit: number
+    ageLimit: number;
   };
 };
 
@@ -62,20 +62,22 @@ export default class FileClient extends EventEmitter {
     };
   }
 
-  updateLimits(
-    limits
-  : ConstructorParameters["limits"]) {
-    const {ageLimit, downloadLimit, errorLimit} = limits
+  updateLimits(limits: {
+    ageLimit?: number;
+    downloadLimit?: number;
+    errorLimit?: number;
+  }) {
+    const { ageLimit, downloadLimit, errorLimit } = limits;
     FileClient.limits = {
-      age: ageLimit,
-      downloads: downloadLimit,
-      errors: errorLimit,
+      age: ageLimit ?? FileClient.limits.age,
+      downloads: downloadLimit ?? FileClient.limits.downloads,
+      errors: errorLimit ?? FileClient.limits.errors,
     };
     // check that all existing files are still alive after updating limits
-   for (const hash in this.items) {
+    for (const hash in this.items) {
       if (Object.prototype.hasOwnProperty.call(this.items, hash)) {
         const file = this.items[hash];
-        file._lifeCheck()
+        file._lifeCheck();
       }
     }
   }

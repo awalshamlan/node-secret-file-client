@@ -90,6 +90,7 @@ export default class FileCounter extends EventEmitter {
   dead: boolean = false;
   timeOfBirth: number = 0;
   timeOfDeath: number = 0;
+  deathCertificate: Promise<DeathCertificate> | undefined // is undefined until birth
   constructor(parent: FileClient, srcPath: fs.PathLike) {
     super();
     console.log("Constructor");
@@ -120,7 +121,7 @@ export default class FileCounter extends EventEmitter {
     this.on("busy", () => {
       this._ready = false;
     });
-    PromiseQueue.enqueue(this, waitForDeath);
+    this.deathCertificate = PromiseQueue.enqueue(this, waitForDeath);
     return;
   }
 
@@ -242,7 +243,7 @@ class PromiseQueue {
     file: FileCounter,
     promise: (value: FileCounter) => Promise<DeathCertificate>
   ) {
-    return new Promise((resolve, reject) => {
+    return new Promise<DeathCertificate>((resolve, reject) => {
       this.queue.push({ promise, resolve, reject, file });
       console.log("Enqueued");
       this.dequeue();

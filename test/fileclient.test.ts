@@ -340,7 +340,6 @@ describe("Bespoke file client", () => {
             firstFileDead = true;
             firstFileTimeOfDeath = certificate.timeOfDeath;
             expect(certificate.causeOfDeath).toBe("old age");
-
             if (firstFileDead && secondFileDead) {
               deathDelta = Math.abs(
                 secondFileTimeOfDeath - firstFileTimeOfDeath
@@ -354,7 +353,6 @@ describe("Bespoke file client", () => {
             secondFileDead = true;
             secondFileTimeOfDeath = certificate.timeOfDeath;
             expect(certificate.causeOfDeath).toBe("old age");
-
             if (firstFileDead && secondFileDead) {
               deathDelta = Math.abs(
                 secondFileTimeOfDeath - firstFileTimeOfDeath

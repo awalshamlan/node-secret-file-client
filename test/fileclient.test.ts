@@ -1,4 +1,4 @@
-import FileClient from "../src/fileClient";
+import FileClient from "../lib/cjs";
 import crypto from "crypto";
 import fs from "fs";
 import FileCounter, { generateFileName } from "../src/fileClient/item";

@@ -7,7 +7,6 @@ import FileCounter from "./item";
 import path from "path";
 import { strict as assert } from "assert";
 import EventEmitter from "events";
-import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 
 // TO-DO: jsdoc
 

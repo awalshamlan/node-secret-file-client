@@ -8,7 +8,7 @@ export declare type DeathCertificate = {
     timeOfBirth: number;
     fileName: string;
 };
-export declare function generateFileName(srcPath: fs.PathLike): Promise<string>;
+export declare function generateFileName(src: fs.PathLike | fs.ReadStream): Promise<string>;
 export default class FileCounter extends EventEmitter {
     static parent: FileClient | false;
     _filePath: string;
@@ -21,8 +21,8 @@ export default class FileCounter extends EventEmitter {
     timeOfBirth: number;
     timeOfDeath: number;
     deathCertificate: Promise<DeathCertificate> | undefined;
-    constructor(parent: FileClient, srcPath: fs.PathLike);
-    _init(srcPath: fs.PathLike): Promise<void>;
+    constructor(parent: FileClient, src: fs.PathLike | fs.ReadStream);
+    _init(srcPath: fs.PathLike | fs.ReadStream): Promise<void>;
     getLifeStatus(): {
         age: {
             limit: number;

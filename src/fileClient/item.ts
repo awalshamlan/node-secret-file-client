@@ -45,9 +45,16 @@ async function streamToBuffer(fileStream: fs.ReadStream) {
   });
 }
 
-export async function generateFileName(srcPath: fs.PathLike) {
+export async function generateFileName(src: fs.PathLike | fs.ReadStream) {
+  var fileStream: fs.ReadStream;
   try {
-    const fileStream = fs.createReadStream(srcPath);
+    if (typeof src === "string") {
+      fileStream = fs.createReadStream(src);
+    } else if (src instanceof fs.ReadStream) {
+      fileStream = src;
+    } else {
+      throw new Error("Not a path or a stream!");
+    }
     const fileBuffer = await streamToBuffer(fileStream);
     const hashSum = crypto.createHash("sha256");
     hashSum.update(fileBuffer);
@@ -58,14 +65,19 @@ export async function generateFileName(srcPath: fs.PathLike) {
   }
 }
 
-async function writeToDisk(srcPath: fs.PathLike, dstPath: fs.PathLike) {
+async function writeToDisk(
+  src: fs.PathLike | fs.ReadStream,
+  dstPath: fs.PathLike
+) {
   return new Promise((resolve, reject) => {
     try {
-      fs.createReadStream(srcPath).pipe(
-        fs.createWriteStream(dstPath).on("finish", () => {
-          resolve(true);
-        })
-      );
+      src instanceof fs.ReadStream
+        ? src
+        : fs.createReadStream(src).pipe(
+            fs.createWriteStream(dstPath).on("finish", () => {
+              resolve(true);
+            })
+          );
     } catch (err) {
       reject("Error writing file to disk!");
       throw err;
@@ -87,8 +99,8 @@ export default class FileCounter extends EventEmitter {
   dead: boolean = false;
   timeOfBirth: number = 0;
   timeOfDeath: number = 0;
-  deathCertificate: Promise<DeathCertificate> | undefined // is undefined until birth
-  constructor(parent: FileClient, srcPath: fs.PathLike) {
+  deathCertificate: Promise<DeathCertificate> | undefined; // is undefined until birth
+  constructor(parent: FileClient, src: fs.PathLike | fs.ReadStream) {
     super();
     // make sure parent conditions hold
     if (!parent) {
@@ -101,10 +113,10 @@ export default class FileCounter extends EventEmitter {
       // (this probably means a second FileClient was created)
       assert.deepStrictEqual(parent, FileCounter.parent, errors.adoptionError);
     }
-    this._init(srcPath);
+    this._init(src);
   }
 
-  async _init(srcPath: fs.PathLike) {
+  async _init(srcPath: fs.PathLike | fs.ReadStream) {
     // generate path:
     this.fileHash = await generateFileName(srcPath);
     this._filePath = `${FileClient.tempFolder}/${this.fileHash}`;

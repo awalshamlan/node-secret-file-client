@@ -45,8 +45,7 @@ export default class FileClient extends EventEmitter {
       throw err;
     }
     try {
-      fs.mkdir(FileClient.tempFolder, () => {
-      });
+      fs.mkdir(FileClient.tempFolder, () => {});
     } catch (err) {
       throw err;
     }
@@ -79,7 +78,7 @@ export default class FileClient extends EventEmitter {
     }
   }
 
-  addFile(srcPath: fs.PathLike): Promise<string> {
+  addFile(srcPath: fs.PathLike | fs.ReadStream): Promise<string> {
     return new Promise((resolve, reject) => {
       var newFile = new FileCounter(this, srcPath);
       newFile.on("birth", () => {
@@ -91,6 +90,7 @@ export default class FileClient extends EventEmitter {
       });
     });
   }
+
   getFile(hash: string) {
     return this.items[hash].getReadStream();
   }

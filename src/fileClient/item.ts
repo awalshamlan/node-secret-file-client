@@ -17,22 +17,6 @@ export type DeathCertificate = {
   fileName: string;
 };
 
-async function waitForDeath(
-  referencedFile: FileCounter
-): Promise<DeathCertificate> {
-  setTimeout(() => referencedFile._kill("old age"), FileClient.limits.age);
-  return new Promise<DeathCertificate>((resolve, reject) => {
-    referencedFile.on("death", (causeOfDeath) => {
-      resolve({
-        causeOfDeath,
-        timeOfBirth: referencedFile.timeOfBirth,
-        timeOfDeath: referencedFile.timeOfDeath,
-        fileName: referencedFile.fileHash,
-      });
-    });
-  });
-}
-
 async function streamToBuffer(fileStream: fs.ReadStream) {
   return new Promise<Buffer>((resolve, reject) => {
     try {
@@ -85,7 +69,7 @@ async function writeToDisk(
   });
 }
 
-export default class FileCounter extends EventEmitter {
+export class FileCounter extends EventEmitter {
   // static variatbles
   static parent: FileClient | false = false;
   // private variables
@@ -128,8 +112,22 @@ export default class FileCounter extends EventEmitter {
     this.on("busy", () => {
       this._ready = false;
     });
-    this.deathCertificate = PromiseQueue.enqueue(this, waitForDeath);
+    PromisePool.open(this.waitForDeath);
     return;
+  }
+
+  async waitForDeath(): Promise<DeathCertificate> {
+    setTimeout(() => this._kill("old age"), FileClient.limits.age);
+    return new Promise<DeathCertificate>((resolve, reject) => {
+      this.on("death", (causeOfDeath) => {
+        resolve({
+          causeOfDeath,
+          timeOfBirth: this.timeOfBirth,
+          timeOfDeath: this.timeOfDeath,
+          fileName: this.fileHash,
+        });
+      });
+    });
   }
 
   getLifeStatus(): {
@@ -230,54 +228,42 @@ export default class FileCounter extends EventEmitter {
   };
 }
 
-class PromiseQueue {
-  static resolved: Array<DeathCertificate> = [];
-  static queue: Array<{
-    promise: (value: FileCounter) => Promise<DeathCertificate>;
-    resolve: (value: any) => void;
-    reject: (reason: any) => any;
-    file: FileCounter;
-  }> = [];
-  static pendingPormise = false;
+// borrowed heavily from https://github.com/bevry/native-promise-pool/blob/master/source/index.ts
+class PromisePool {
+  static concurrency: number = 0;
+  static running: number = 0;
+  static started: number = 0;
+  static readonly queue: Array<Function> = [];
+  static readonly graveyard: Array<DeathCertificate> = [];
 
-  static enqueue(
-    file: FileCounter,
-    promise: (value: FileCounter) => Promise<DeathCertificate>
-  ) {
-    return new Promise<DeathCertificate>((resolve, reject) => {
-      this.queue.push({ promise, resolve, reject, file });
-      this.dequeue();
-    });
-  }
-
-  static dequeue() {
-    if (this.pendingPormise) {
-      return false;
+  static open(
+    task: () => Promise<DeathCertificate>
+  ): Promise<DeathCertificate> {
+    const p = new Promise((resolve) => PromisePool.queue.push(resolve))
+      .finally(() => {
+        PromisePool.started--;
+        PromisePool.running--;
+      })
+      .then(task)
+      .finally(() => {
+        PromisePool.running--;
+        if (PromisePool.queue.length) {
+          PromisePool.started++;
+          const resolver = PromisePool.queue.shift() as Function;
+          resolver();
+        }
+      });
+    if (
+      PromisePool.queue.length &&
+      (!PromisePool.concurrency ||
+        PromisePool.running + PromisePool.started < PromisePool.concurrency)
+    ) {
+      PromisePool.started++;
+      const resolver = PromisePool.queue.shift() as Function;
+      resolver();
     }
-    const item = this.queue.shift();
-    if (!item) {
-      return false;
-    }
-    try {
-      this.pendingPormise = true;
-      item
-        .promise(item.file)
-        .then((value) => {
-          this.pendingPormise = false;
-          item.resolve(value);
-          this.resolved.push(value);
-          this.dequeue();
-        })
-        .catch((err) => {
-          this.pendingPormise = false;
-          item.reject(err);
-          this.dequeue();
-        });
-    } catch (err) {
-      this.pendingPormise = false;
-      item.reject(err ?? "Error");
-      this.dequeue();
-    }
-    return true;
+    return p;
   }
 }
+
+export const graveyard = PromisePool.graveyard

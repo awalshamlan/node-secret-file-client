@@ -1,8 +1,7 @@
 // local module imports
 import fs from "fs";
 import * as errors from "./errors";
-import FileCounter from "./item";
-
+import { FileCounter, graveyard } from "./item";
 // node_module imports
 import path from "path";
 import { strict as assert } from "assert";
@@ -29,8 +28,8 @@ export default class FileClient extends EventEmitter {
     downloads: number;
     errors: number;
   };
+  static graveyard = graveyard;
   static tempFolder: string;
-
   constructor({
     dir,
     limits: { downloadLimit, errorLimit, ageLimit },

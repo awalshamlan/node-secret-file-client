@@ -69,6 +69,25 @@ async function writeToDisk(
   });
 }
 
+function ageToDeath(file: FileCounter): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    file.on("death", (deathCertificate) => {
+      reject();
+    });
+    setTimeout(() => {
+      resolve(file._kill("old age"));
+    }, FileClient.limits.age);
+  });
+}
+
+function resolveOnDeath(file: FileCounter): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    file.on("death", (causeOfDeath) => {
+      resolve();
+    });
+  });
+}
+
 export class FileCounter extends EventEmitter {
   // static variatbles
   static parent: FileClient | false = false;
@@ -83,7 +102,7 @@ export class FileCounter extends EventEmitter {
   dead: boolean = false;
   timeOfBirth: number = 0;
   timeOfDeath: number = 0;
-  deathCertificate: Promise<DeathCertificate> | undefined; // is undefined until birth
+  deathCertificate: DeathCertificate | undefined; // is undefined until death
   constructor(parent: FileClient, src: fs.PathLike | fs.ReadStream) {
     super();
     // make sure parent conditions hold
@@ -112,22 +131,12 @@ export class FileCounter extends EventEmitter {
     this.on("busy", () => {
       this._ready = false;
     });
-    PromisePool.open(this.waitForDeath);
-    return;
-  }
-
-  async waitForDeath(): Promise<DeathCertificate> {
-    setTimeout(() => this._kill("old age"), FileClient.limits.age);
-    return new Promise<DeathCertificate>((resolve, reject) => {
-      this.on("death", (causeOfDeath) => {
-        resolve({
-          causeOfDeath,
-          timeOfBirth: this.timeOfBirth,
-          timeOfDeath: this.timeOfDeath,
-          fileName: this.fileHash,
-        });
-      });
+    ageToDeath(this).catch((err) => {
+      // don't do anything here, ageToDeath rejects when the file died in some other way.
+      // this implementation is to free the system i/o from resolving a pointless promise.
     });
+    resolveOnDeath(this);
+    return;
   }
 
   getLifeStatus(): {
@@ -154,7 +163,14 @@ export class FileCounter extends EventEmitter {
   _kill(causeOfDeath: string) {
     this.dead = true;
     this.timeOfDeath = new Date().getTime();
-    this.emit("death", causeOfDeath);
+    const deathCertificate = {
+      causeOfDeath,
+      timeOfBirth: this.timeOfBirth,
+      timeOfDeath: this.timeOfDeath,
+      fileName: this.fileHash,
+    };
+    this.deathCertificate = deathCertificate;
+    this.emit("death", deathCertificate);
   }
 
   _lifeCheck = (): boolean => {
@@ -227,43 +243,3 @@ export class FileCounter extends EventEmitter {
     }
   };
 }
-
-// borrowed heavily from https://github.com/bevry/native-promise-pool/blob/master/source/index.ts
-class PromisePool {
-  static concurrency: number = 0;
-  static running: number = 0;
-  static started: number = 0;
-  static readonly queue: Array<Function> = [];
-  static readonly graveyard: Array<DeathCertificate> = [];
-
-  static open(
-    task: () => Promise<DeathCertificate>
-  ): Promise<DeathCertificate> {
-    const p = new Promise((resolve) => PromisePool.queue.push(resolve))
-      .finally(() => {
-        PromisePool.started--;
-        PromisePool.running--;
-      })
-      .then(task)
-      .finally(() => {
-        PromisePool.running--;
-        if (PromisePool.queue.length) {
-          PromisePool.started++;
-          const resolver = PromisePool.queue.shift() as Function;
-          resolver();
-        }
-      });
-    if (
-      PromisePool.queue.length &&
-      (!PromisePool.concurrency ||
-        PromisePool.running + PromisePool.started < PromisePool.concurrency)
-    ) {
-      PromisePool.started++;
-      const resolver = PromisePool.queue.shift() as Function;
-      resolver();
-    }
-    return p;
-  }
-}
-
-export const graveyard = PromisePool.graveyard

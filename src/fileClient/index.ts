@@ -1,7 +1,7 @@
 // local module imports
 import fs from "fs";
 import * as errors from "./errors";
-import { FileCounter, graveyard } from "./item";
+import { DeathCertificate, FileCounter } from "./item";
 // node_module imports
 import path from "path";
 import { strict as assert } from "assert";
@@ -28,7 +28,7 @@ export default class FileClient extends EventEmitter {
     downloads: number;
     errors: number;
   };
-  static graveyard = graveyard;
+  static graveyard: DeathCertificate[] = [];
   static tempFolder: string;
   constructor({
     dir,
@@ -83,7 +83,8 @@ export default class FileClient extends EventEmitter {
         this.items[newFile.fileHash] = newFile;
         resolve(newFile.fileHash);
       });
-      newFile.on("death", () => {
+      newFile.on("death", (deathCertificate : DeathCertificate) => {
+        FileClient.graveyard.push(deathCertificate);
         delete this.items[newFile.fileHash];
       });
     });

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import fs from "fs";
-import FileCounter from "./item";
+import { DeathCertificate, FileCounter } from "./item";
 import EventEmitter from "events";
 declare type ConstructorParameters = {
     dir: string;
@@ -19,6 +19,7 @@ export default class FileClient extends EventEmitter {
         downloads: number;
         errors: number;
     };
+    static graveyard: DeathCertificate[];
     static tempFolder: string;
     constructor({ dir, limits: { downloadLimit, errorLimit, ageLimit }, }: ConstructorParameters);
     updateLimits(limits: {

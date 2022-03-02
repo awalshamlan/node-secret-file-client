@@ -1,7 +1,7 @@
-import FileClient from "../lib/cjs";
+import FileClient from "../src/fileClient";
 import crypto from "crypto";
 import fs from "fs";
-import FileCounter, { generateFileName } from "../src/fileClient/item";
+import { FileCounter, generateFileName } from "../src/fileClient/item";
 import { zombieError } from "../src/fileClient/errors";
 
 // file names change the stream value so this usecase is pretty limited
@@ -232,12 +232,12 @@ describe("Bespoke file client", () => {
     test("age the file", async () => {
       agingFile = testFileClient.items[testFileHash];
       await new Promise<void>((resolve, reject) => {
-        agingFile.deathCertificate.then((deathCertificate) => {
+        agingFile.on("death", (deathCertificate) => {
           expect(deathCertificate.causeOfDeath).toBe("old age");
           expect(
             Math.abs(
-              deathCertificate.timeOfDeath -
-                deathCertificate.timeOfBirth -
+              agingFile.timeOfDeath -
+                agingFile.timeOfBirth -
                 FileClient.limits.age
             ) // thankfully js arithmatic prescendence allows this
           ).toBeLessThan(1000);
@@ -296,6 +296,7 @@ describe("Bespoke file client", () => {
       const writeFirstFile = testFileClient
         .addFile(firstFileName)
         .then((hash) => {
+          firstFileEnd = Date.now()
           firstFileHash = hash;
           console.log(
             `Uploaded first file after  ${Date.now() - startTime} ms`
@@ -304,6 +305,7 @@ describe("Bespoke file client", () => {
       const writeSecondFile = testFileClient
         .addFile(secondFileName)
         .then((hash) => {
+          secondFileEnd = Date.now()
           secondFileHash = hash;
           console.log(
             `Uploaded second file after ${Date.now() - startTime} ms`
@@ -328,53 +330,48 @@ describe("Bespoke file client", () => {
     test("age both to death", async () => {
       var firstFileDead = false;
       var secondFileDead = false;
-      var firstFileTimeOfBirth =
-        testFileClient.items[firstFileHash].timeOfBirth;
-      var secondFileTimeOfBirth =
-        testFileClient.items[secondFileHash].timeOfBirth;
+      const firstFile = testFileClient.items[firstFileHash];
+      var firstFileTimeOfBirth = firstFile.timeOfBirth;
+      const secondFile = testFileClient.items[secondFileHash];
+      var secondFileTimeOfBirth = secondFile.timeOfBirth;
       var firstFileTimeOfDeath: number;
       var secondFileTimeOfDeath: number;
-      await new Promise<void>((resolve, reject) => {
-        testFileClient.items[firstFileHash].deathCertificate.then(
-          (certificate) => {
+      await Promise.all([
+        new Promise<void>((resolve, reject) => {
+          firstFile.on("death", (deathCertificate) => {
             firstFileDead = true;
-            firstFileTimeOfDeath = certificate.timeOfDeath;
-            expect(certificate.causeOfDeath).toBe("old age");
-            if (firstFileDead && secondFileDead) {
-              deathDelta = Math.abs(
-                secondFileTimeOfDeath - firstFileTimeOfDeath
-              );
-              resolve();
-            }
-          }
-        );
-        testFileClient.items[secondFileHash].deathCertificate.then(
-          (certificate) => {
+            firstFileTimeOfDeath = firstFile.timeOfDeath
+            expect(deathCertificate.causeOfDeath).toBe("old age");
+            resolve();
+          });
+        }),
+        new Promise<void>((resolve, reject) => {
+          secondFile.on("death", (deathCertificate) => {
             secondFileDead = true;
-            secondFileTimeOfDeath = certificate.timeOfDeath;
-            expect(certificate.causeOfDeath).toBe("old age");
-            if (firstFileDead && secondFileDead) {
-              deathDelta = Math.abs(
-                secondFileTimeOfDeath - firstFileTimeOfDeath
-              );
-              resolve();
-            }
-          }
-        );
+            secondFileTimeOfDeath = secondFile.timeOfDeath
+            expect(deathCertificate.causeOfDeath).toBe("old age");
+            resolve();
+          });
+        }),
+      ]).then(() => {
+        deathDelta = Math.abs(secondFileTimeOfDeath - firstFileTimeOfDeath);
+        console.log(deathDelta, secondFileTimeOfDeath, firstFileTimeOfDeath)
+        expect(
+          Math.abs(
+            firstFileTimeOfDeath - firstFileTimeOfBirth - FileClient.limits.age
+          )
+        ).toBeLessThan(1000);
+        expect(
+          Math.abs(
+            secondFileTimeOfDeath -
+              secondFileTimeOfBirth -
+              FileClient.limits.age
+          )
+        ).toBeLessThan(1000);
+        expect(Math.abs(deathDelta - birthDelta)).toBeLessThan(100); // death difference should be roughly equal to birth difference. only allow 100ms discrepency
+        expect(testFileClient.items[firstFileHash]).toBeUndefined();
+        expect(testFileClient.items[secondFileHash]).toBeUndefined();
       });
-      expect(
-        Math.abs(
-          firstFileTimeOfDeath - firstFileTimeOfBirth - FileClient.limits.age
-        )
-      ).toBeLessThan(1000);
-      expect(
-        Math.abs(
-          secondFileTimeOfDeath - secondFileTimeOfBirth - FileClient.limits.age
-        )
-      ).toBeLessThan(1000);
-      expect(Math.abs(deathDelta - birthDelta)).toBeLessThan(100); // death difference should be roughly equal to birth difference. only allow 100ms discrepency
-      expect(testFileClient.items[firstFileHash]).toBeUndefined();
-      expect(testFileClient.items[secondFileHash]).toBeUndefined();
     }, 60000); // longer timeout because i expect strange behaviour
   });
   // this whole thing needs to be rewritten

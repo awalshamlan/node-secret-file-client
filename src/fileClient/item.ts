@@ -7,6 +7,7 @@ import { strict as assert } from "assert";
 import crypto from "crypto";
 import fs from "fs";
 import EventEmitter from "events";
+import mime from "mime";
 
 // types
 
@@ -93,6 +94,8 @@ export class FileCounter extends EventEmitter {
   static parent: FileClient | false = false;
   // private variables
   _filePath: string = "";
+  _mimeType: string | null = null;
+  _ext: string | null = null;
   _ready: boolean = false;
   _stalenessCount: number = 0;
   _downloadCount: number = 0;
@@ -103,7 +106,7 @@ export class FileCounter extends EventEmitter {
   timeOfBirth: number = 0;
   timeOfDeath: number = 0;
   deathCertificate: DeathCertificate | undefined; // is undefined until death
-  constructor(parent: FileClient, src: fs.PathLike | fs.ReadStream) {
+  constructor(parent: FileClient, src: string | fs.ReadStream) {
     super();
     // make sure parent conditions hold
     if (!parent) {
@@ -118,8 +121,17 @@ export class FileCounter extends EventEmitter {
     }
     this._init(src);
   }
-
-  async _init(srcPath: fs.PathLike | fs.ReadStream) {
+  async _init(srcPath: fs.ReadStream | string) {
+    if(typeof srcPath ==="string"){
+      this._mimeType = mime.getType(srcPath)
+      this._ext = mime.getExtension(srcPath)
+    }else{
+      // @ts-expect-error technically fs.ReadStream.path could be a buffer
+      // but our implementation in FileClient guarentees a string here.
+      this._mimeType = mime.getType(srcPath.path)
+      // @ts-expect-error see above
+      this._ext = mime.getExtension(srcPath.path)
+    }
     // generate path:
     this.fileHash = await generateFileName(srcPath);
     this._filePath = `${FileClient.tempFolder}/${this.fileHash}`;

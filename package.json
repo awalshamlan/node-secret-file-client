@@ -7,9 +7,10 @@
   "scripts": {
     "test": "jest --runInBand --detectOpenHandles",
     "compile": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
-    "prepare:major": "./prepare.sh major",
-    "prepare:minor": "./pepare.sh minor",
-    "prepare:patch": "./prepare.sh patch"
+    "prepare:major": "./prepare.sh --type=major",
+    "prepare:minor": "./prepare.sh --type=minor",
+    "prepare:patch": "./prepare.sh --type=patch",
+    "pwd": "echo $PWD"
   },
   "repository": {
     "type": "git",

@@ -20,7 +20,7 @@ export type DeathCertificate = {
 
 function getExtension(path: string) {
   const stringArray = path.split(".");
-  if(stringArray.length === 0){
+  if(stringArray.length === 1){
     return null
   }
   return stringArray[stringArray.length - 1];

@@ -4,4 +4,4 @@ git add lib &&
 git commit -m \"updated binaries\" &&
 git branch --show-current | 
 xargs -i git push -u origin {} &&
-npm version $1
+npm version $type

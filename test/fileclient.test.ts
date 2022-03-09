@@ -296,7 +296,7 @@ describe("Bespoke file client", () => {
       const writeFirstFile = testFileClient
         .addFile(firstFileName)
         .then((hash) => {
-          firstFileEnd = Date.now()
+          firstFileEnd = Date.now();
           firstFileHash = hash;
           console.log(
             `Uploaded first file after  ${Date.now() - startTime} ms`
@@ -305,7 +305,7 @@ describe("Bespoke file client", () => {
       const writeSecondFile = testFileClient
         .addFile(secondFileName)
         .then((hash) => {
-          secondFileEnd = Date.now()
+          secondFileEnd = Date.now();
           secondFileHash = hash;
           console.log(
             `Uploaded second file after ${Date.now() - startTime} ms`
@@ -316,8 +316,34 @@ describe("Bespoke file client", () => {
       });
     });
     test("get both files", async () => {
+      const firstDestinationStream = fs.createWriteStream("dest1");
+      const secondDestinationStream = fs.createWriteStream("dest2");
       const firstFileReadStream = testFileClient.getFile(firstFileHash);
       const secondFileReadStream = testFileClient.getFile(secondFileHash);
+      firstFileReadStream.pipe(firstDestinationStream);
+      secondFileReadStream.pipe(secondDestinationStream);
+      var firstIsClosed = false;
+      var secondIsClosed = false;
+      firstDestinationStream.on("close", () => {
+        firstIsClosed = true;
+        if (firstIsClosed && secondIsClosed) {
+          const firstCopyHash = generateFileName("dest1");
+          expect(firstCopyHash).toBe(firstFileHash);
+          const secondCopyHash = generateFileName("dest2");
+          expect(secondCopyHash).toBe(secondFileHash);
+        }
+      });
+      secondDestinationStream.on("close",  async () => {
+        secondIsClosed = true;
+        if (firstIsClosed && secondIsClosed) {
+          const [firstCopyHash, secondCopyHash] = await Promise.all([
+            generateFileName("dest1"),
+            generateFileName("dest2"),
+          ]);
+          expect(firstCopyHash).toBe(firstFileHash);
+          expect(secondCopyHash).toBe(secondFileHash);
+        }
+      });
       expect(
         testFileClient.items[firstFileHash].getLifeStatus().downloadCount
           .current
@@ -340,7 +366,7 @@ describe("Bespoke file client", () => {
         new Promise<void>((resolve, reject) => {
           firstFile.on("death", (deathCertificate) => {
             firstFileDead = true;
-            firstFileTimeOfDeath = firstFile.timeOfDeath
+            firstFileTimeOfDeath = firstFile.timeOfDeath;
             expect(deathCertificate.causeOfDeath).toBe("old age");
             resolve();
           });
@@ -348,14 +374,14 @@ describe("Bespoke file client", () => {
         new Promise<void>((resolve, reject) => {
           secondFile.on("death", (deathCertificate) => {
             secondFileDead = true;
-            secondFileTimeOfDeath = secondFile.timeOfDeath
+            secondFileTimeOfDeath = secondFile.timeOfDeath;
             expect(deathCertificate.causeOfDeath).toBe("old age");
             resolve();
           });
         }),
       ]).then(() => {
         deathDelta = Math.abs(secondFileTimeOfDeath - firstFileTimeOfDeath);
-        console.log(deathDelta, secondFileTimeOfDeath, firstFileTimeOfDeath)
+        console.log(deathDelta, secondFileTimeOfDeath, firstFileTimeOfDeath);
         expect(
           Math.abs(
             firstFileTimeOfDeath - firstFileTimeOfBirth - FileClient.limits.age

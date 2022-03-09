@@ -12,6 +12,9 @@ export declare function generateFileName(src: fs.PathLike | fs.ReadStream): Prom
 export declare class FileCounter extends EventEmitter {
     static parent: FileClient | false;
     _filePath: string;
+    _mimeType: string | null;
+    _originalFileName: string;
+    _ext: string | null;
     _ready: boolean;
     _stalenessCount: number;
     _downloadCount: number;
@@ -21,8 +24,8 @@ export declare class FileCounter extends EventEmitter {
     timeOfBirth: number;
     timeOfDeath: number;
     deathCertificate: DeathCertificate | undefined;
-    constructor(parent: FileClient, src: fs.PathLike | fs.ReadStream);
-    _init(srcPath: fs.PathLike | fs.ReadStream): Promise<void>;
+    constructor(parent: FileClient, src: string | fs.ReadStream);
+    _init(srcPath: fs.ReadStream | string): Promise<void>;
     getLifeStatus(): {
         age: {
             limit: number;

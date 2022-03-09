@@ -8,7 +8,7 @@ import crypto from "crypto";
 import fs from "fs";
 import EventEmitter from "events";
 import mime from "mime";
-
+import Path from "path";
 // types
 
 export type DeathCertificate = {
@@ -17,6 +17,19 @@ export type DeathCertificate = {
   timeOfBirth: number;
   fileName: string;
 };
+
+function getExtension(path: string) {
+  const stringArray = path.split(".");
+  if(stringArray.length === 0){
+    return null
+  }
+  return stringArray[stringArray.length - 1];
+}
+
+function getFileName(path: string) {
+  const stringArray = path.split(Path.sep);
+  return stringArray[stringArray.length - 1];
+}
 
 async function streamToBuffer(fileStream: fs.ReadStream) {
   return new Promise<Buffer>((resolve, reject) => {
@@ -95,7 +108,7 @@ export class FileCounter extends EventEmitter {
   // private variables
   _filePath: string = "";
   _mimeType: string | null = null;
-  _originalFileName: string = ""
+  _originalFileName: string = "";
   _ext: string | null = null;
   _ready: boolean = false;
   _stalenessCount: number = 0;
@@ -123,18 +136,20 @@ export class FileCounter extends EventEmitter {
     this._init(src);
   }
   async _init(srcPath: fs.ReadStream | string) {
-    if(typeof srcPath ==="string"){
-      this._mimeType = mime.getType(srcPath)
-      this._ext = mime.getExtension(srcPath)
-      this._originalFileName = srcPath.split("/")[-1]
-    }else{
+    if (typeof srcPath === "string") {
+      console.log(srcPath);
+      this._ext = getExtension(srcPath);
+      this._mimeType = this._ext?mime.getType(this._ext):null
+      this._originalFileName = getFileName(srcPath)
+      console.log(this._ext, this._mimeType, this._originalFileName)
+    } else {
       // @ts-expect-error technically fs.ReadStream.path could be a buffer
-      // but our implementation in FileClient guarentees a string here.
-      this._mimeType = mime.getType(srcPath.path)
+      // but our implementation in FileClient guarentees a string here
+      this._ext = srcPath.path.split(".")[-1];
+      //@ts-expect-error see above
+      this._mimeType = mime.getType(this._ext);
       // @ts-expect-error see above
-      this._ext = mime.getExtension(srcPath.path)
-      // @ts-expect-error
-      this._originalFileName = srcPath.path.split("/")[-1]
+      this._originalFileName = srcPath.path.split("/")[-1];
     }
     // generate path:
     this.fileHash = await generateFileName(srcPath);

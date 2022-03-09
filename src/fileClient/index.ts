@@ -91,6 +91,9 @@ export default class FileClient extends EventEmitter {
   }
 
   getFile(hash: string) {
-    return this.items[hash].getReadStream();
+    return this.items[hash];
+  }
+  getFileReadStream(hash:string){
+    return this.items[hash].getReadStream()
   }
 }

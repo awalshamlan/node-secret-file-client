@@ -95,6 +95,7 @@ export class FileCounter extends EventEmitter {
   // private variables
   _filePath: string = "";
   _mimeType: string | null = null;
+  _originalFileName: string = ""
   _ext: string | null = null;
   _ready: boolean = false;
   _stalenessCount: number = 0;
@@ -125,12 +126,15 @@ export class FileCounter extends EventEmitter {
     if(typeof srcPath ==="string"){
       this._mimeType = mime.getType(srcPath)
       this._ext = mime.getExtension(srcPath)
+      this._originalFileName = srcPath.split("/")[-1]
     }else{
       // @ts-expect-error technically fs.ReadStream.path could be a buffer
       // but our implementation in FileClient guarentees a string here.
       this._mimeType = mime.getType(srcPath.path)
       // @ts-expect-error see above
       this._ext = mime.getExtension(srcPath.path)
+      // @ts-expect-error
+      this._originalFileName = srcPath.path.split("/")[-1]
     }
     // generate path:
     this.fileHash = await generateFileName(srcPath);

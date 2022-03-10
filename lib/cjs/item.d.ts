@@ -44,5 +44,5 @@ export declare class FileCounter extends EventEmitter {
     _lifeCheck: () => boolean;
     _incDownload: () => void;
     _incError: () => void;
-    getReadStream: () => fs.ReadStream;
+    getReadStream: () => Promise<fs.ReadStream>;
 }

@@ -207,7 +207,7 @@ describe("Bespoke file client", () => {
     });
     // retrieve a file and verify that the file's download count has incremented
     test("Get a file", async () => {
-      const testReader = testFileClient.getFileReadStream(testFileHash);
+      const testReader = await testFileClient.getFileReadStream(testFileHash);
       const writeStream = fs.createWriteStream(
         `${downloadedFilesDir}/downloadedFile`
       );
@@ -332,9 +332,9 @@ describe("Bespoke file client", () => {
         "./test/download-dir/dest2"
       );
       const firstFileReadStream =
-        testFileClient.getFileReadStream(firstFileHash);
+        await testFileClient.getFileReadStream(firstFileHash);
       const secondFileReadStream =
-        testFileClient.getFileReadStream(secondFileHash);
+        await testFileClient.getFileReadStream(secondFileHash);
       firstFileReadStream.pipe(firstDestinationStream);
       secondFileReadStream.pipe(secondDestinationStream);
       var firstIsClosed = false;

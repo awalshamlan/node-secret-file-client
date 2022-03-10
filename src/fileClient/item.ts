@@ -20,8 +20,8 @@ export type DeathCertificate = {
 
 function getExtension(path: string) {
   const stringArray = path.split(".");
-  if(stringArray.length === 1){
-    return null
+  if (stringArray.length === 1) {
+    return null;
   }
   return stringArray[stringArray.length - 1];
 }
@@ -139,9 +139,9 @@ export class FileCounter extends EventEmitter {
     if (typeof srcPath === "string") {
       console.log(srcPath);
       this._ext = getExtension(srcPath);
-      this._mimeType = this._ext?mime.getType(this._ext):null
-      this._originalFileName = getFileName(srcPath)
-      console.log(this._ext, this._mimeType, this._originalFileName)
+      this._mimeType = this._ext ? mime.getType(this._ext) : null;
+      this._originalFileName = getFileName(srcPath);
+      console.log(this._ext, this._mimeType, this._originalFileName);
     } else {
       // @ts-expect-error technically fs.ReadStream.path could be a buffer
       // but our implementation in FileClient guarentees a string here
@@ -162,9 +162,9 @@ export class FileCounter extends EventEmitter {
     this.on("busy", () => {
       this._ready = false;
     });
-    this.on("free", ()=>{
+    this.on("free", () => {
       this._ready = true;
-    })
+    });
     ageToDeath(this).catch((err) => {
       // don't do anything here, ageToDeath rejects when the file died in some other way.
       // this implementation is to free the system i/o from resolving a pointless promise.
@@ -248,34 +248,38 @@ export class FileCounter extends EventEmitter {
   };
 
   getReadStream = () => {
-    if (this._lifeCheck()) {
-      while (!this._ready) {
-        // are we waiting for the last get? don't wait and give up instead
-        // edgecase: brand new file with downloadLimit of 1
-        if (this._downloadCount == FileClient.limits.downloads - 1) {
-          throw new Error(
-            "Attempted to get ReadStream but the last allowed download is already in progress!"
-          );
-        }
-        setTimeout(() => {
-          if (!this._lifeCheck()) {
-            throw new Error("File died while waiting for it to be available!");
+    return new Promise<fs.ReadStream>((resolve, reject) => {
+      if (this._lifeCheck()) {
+        while (!this._ready) {
+          // are we waiting for the last get? don't wait and give up instead
+          // edgecase: brand new file with downloadLimit of 1
+          if (this._downloadCount == FileClient.limits.downloads - 1) {
+            throw new Error(
+              "Attempted to get ReadStream but the last allowed download is already in progress!"
+            );
           }
-        }, 100); // check if the file is still alive / if it is still busy every 100 ms
+          setTimeout(() => {
+            if (!this._lifeCheck()) {
+              throw new Error(
+                "File died while waiting for it to be available!"
+              );
+            }
+          }, 100); // check if the file is still alive / if it is still busy every 100 ms
+        }
+        this.emit("busy");
+        try {
+          const fileReadStream = fs.createReadStream(this._filePath);
+          this._incDownload();
+          resolve(fileReadStream);
+        } catch (err) {
+          this._incError();
+          reject(err);
+        } finally {
+          this.emit("free");
+        }
+      } else {
+        throw errors.exhumationError;
       }
-      this.emit("busy");
-      try {
-        const fileReadStream = fs.createReadStream(this._filePath);
-        this._incDownload();
-        return fileReadStream;
-      } catch (err) {
-        this._incError();
-        throw err;
-      }finally{
-        this.emit("free")
-      }
-    } else {
-      throw errors.exhumationError;
-    }
+    });
   };
 }

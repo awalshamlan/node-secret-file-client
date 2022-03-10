@@ -23,11 +23,39 @@ Assuming that the file is being handled by some express middleware like formidab
     
 Thats it! Now to retrieve the file, lets say your user requets a file with the file hash returned by `.addFile(writeStream)`
 
-### Retrieve a file:
+### Pipe a file to a response:
 Note that you cannot retrieve a dead file. A file dies when the clients download limit, error limit, or age limit has been exceeded. if your files keep dying before you are done with them; either increase the age limit or the download limit.
 
-    const readStream = fileClient.getFile(req.body.file-hash) // again this is just an example. depends on how your server is configured ofc.
+    const readStream = await fileClient.getReadStream(req.body.file-hash) // again this is just an example. depends on how your server is configured ofc.
     // pipe the stream to your server response (or do whatever you want with it really)
     readStream.pipe(req)
+
+
+### Real Example Code:
+
+Using express:
+
+    cosnt app = express();
+
+    app.get("/download/:file_name", (req, res) => {
+      try {
+        const fileName = req.params.file_name; // this should be the hash provided by the fileClient.addFile function.
+        const file = fileClient.getFile(fileName);
+        if (!file) {
+          throw new Error("404");
+        }
+        res.setHeader(
+          "Content-disposition",
+          `attachment; filename=${file._originalFileName}`
+        );
+        res.setHeader("Content-Type", file._mimeType ?? "unknown");
+        file.getReadStream().then((readStream) => readStream.pipe(res));
+      } catch (error) {
+        console.error(error);
+        res.status(404).send();
+      }
+    });
+
+
     
 This is my first npm package so be nice uwu

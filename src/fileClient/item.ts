@@ -162,6 +162,9 @@ export class FileCounter extends EventEmitter {
     this.on("busy", () => {
       this._ready = false;
     });
+    this.on("free", ()=>{
+      this._ready = true;
+    })
     ageToDeath(this).catch((err) => {
       // don't do anything here, ageToDeath rejects when the file died in some other way.
       // this implementation is to free the system i/o from resolving a pointless promise.
@@ -268,6 +271,8 @@ export class FileCounter extends EventEmitter {
       } catch (err) {
         this._incError();
         throw err;
+      }finally{
+        this.emit("free")
       }
     } else {
       throw errors.exhumationError;

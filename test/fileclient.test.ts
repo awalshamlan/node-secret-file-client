@@ -195,10 +195,19 @@ describe("Bespoke file client", () => {
         })
       ); */
     });
-
+    // test on a sample to pdf to verify metadata
+    test("Valid meta data", async () => {
+      const sampleFile = `${process.cwd()}/test/sample.pdf`;
+      const sampleHash = await testFileClient.addFile(sampleFile);
+      expect(sampleHash).toBe(await generateFileName(sampleFile));
+      const file = testFileClient.getFile(sampleHash);
+      expect(file._mimeType).toBe("application/pdf");
+      expect(file._ext).toBe("pdf");
+      expect(file._originalFileName).toBe("sample.pdf");
+    });
     // retrieve a file and verify that the file's download count has incremented
     test("Get a file", async () => {
-      const testReader = testFileClient.getFile(testFileHash);
+      const testReader = testFileClient.getFileReadStream(testFileHash);
       const writeStream = fs.createWriteStream(
         `${downloadedFilesDir}/downloadedFile`
       );
@@ -248,12 +257,12 @@ describe("Bespoke file client", () => {
     test("fail to get an aged file", async () => {
       expect(testFileClient.items[testFileHash]).toBeUndefined();
       expect(agingFile.dead).toBeTruthy();
-      expect(() => testFileClient.getFile(testFileHash)).toThrow();
+      expect(() => testFileClient.getFileReadStream(testFileHash)).toThrow();
     });
   });
   describe("upload and retrieve 2 files asynchronously", () => {
-    const firstFileName = `${process.cwd()}/test/test-file-1`;
-    const secondFileName = `${process.cwd()}/test/test-file-2`;
+    const firstFileName = `${process.cwd()}/test/temp/test-file-1`;
+    const secondFileName = `${process.cwd()}/test/temp/test-file-2`;
     var firstFileHash: string;
     var secondFileHash: string;
     var birthDelta: number;
@@ -316,10 +325,16 @@ describe("Bespoke file client", () => {
       });
     });
     test("get both files", async () => {
-      const firstDestinationStream = fs.createWriteStream("dest1");
-      const secondDestinationStream = fs.createWriteStream("dest2");
-      const firstFileReadStream = testFileClient.getFile(firstFileHash);
-      const secondFileReadStream = testFileClient.getFile(secondFileHash);
+      const firstDestinationStream = fs.createWriteStream(
+        "./test/download-dir/dest1"
+      );
+      const secondDestinationStream = fs.createWriteStream(
+        "./test/download-dir/dest2"
+      );
+      const firstFileReadStream =
+        testFileClient.getFileReadStream(firstFileHash);
+      const secondFileReadStream =
+        testFileClient.getFileReadStream(secondFileHash);
       firstFileReadStream.pipe(firstDestinationStream);
       secondFileReadStream.pipe(secondDestinationStream);
       var firstIsClosed = false;
@@ -327,18 +342,18 @@ describe("Bespoke file client", () => {
       firstDestinationStream.on("close", () => {
         firstIsClosed = true;
         if (firstIsClosed && secondIsClosed) {
-          const firstCopyHash = generateFileName("dest1");
+          const firstCopyHash = generateFileName("./test/download-dir/dest1");
           expect(firstCopyHash).toBe(firstFileHash);
-          const secondCopyHash = generateFileName("dest2");
+          const secondCopyHash = generateFileName("./test/download-dir/dest2");
           expect(secondCopyHash).toBe(secondFileHash);
         }
       });
-      secondDestinationStream.on("close",  async () => {
+      secondDestinationStream.on("close", async () => {
         secondIsClosed = true;
         if (firstIsClosed && secondIsClosed) {
           const [firstCopyHash, secondCopyHash] = await Promise.all([
-            generateFileName("dest1"),
-            generateFileName("dest2"),
+            generateFileName("./test/download-dir/dest1"),
+            generateFileName("./test/download-dir/dest2"),
           ]);
           expect(firstCopyHash).toBe(firstFileHash);
           expect(secondCopyHash).toBe(secondFileHash);

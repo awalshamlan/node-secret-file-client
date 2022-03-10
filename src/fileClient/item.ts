@@ -7,7 +7,8 @@ import { strict as assert } from "assert";
 import crypto from "crypto";
 import fs from "fs";
 import EventEmitter from "events";
-
+import mime from "mime";
+import Path from "path";
 // types
 
 export type DeathCertificate = {
@@ -16,6 +17,19 @@ export type DeathCertificate = {
   timeOfBirth: number;
   fileName: string;
 };
+
+function getExtension(path: string) {
+  const stringArray = path.split(".");
+  if(stringArray.length === 1){
+    return null
+  }
+  return stringArray[stringArray.length - 1];
+}
+
+function getFileName(path: string) {
+  const stringArray = path.split(Path.sep);
+  return stringArray[stringArray.length - 1];
+}
 
 async function streamToBuffer(fileStream: fs.ReadStream) {
   return new Promise<Buffer>((resolve, reject) => {
@@ -93,6 +107,9 @@ export class FileCounter extends EventEmitter {
   static parent: FileClient | false = false;
   // private variables
   _filePath: string = "";
+  _mimeType: string | null = null;
+  _originalFileName: string = "";
+  _ext: string | null = null;
   _ready: boolean = false;
   _stalenessCount: number = 0;
   _downloadCount: number = 0;
@@ -103,7 +120,7 @@ export class FileCounter extends EventEmitter {
   timeOfBirth: number = 0;
   timeOfDeath: number = 0;
   deathCertificate: DeathCertificate | undefined; // is undefined until death
-  constructor(parent: FileClient, src: fs.PathLike | fs.ReadStream) {
+  constructor(parent: FileClient, src: string | fs.ReadStream) {
     super();
     // make sure parent conditions hold
     if (!parent) {
@@ -118,8 +135,22 @@ export class FileCounter extends EventEmitter {
     }
     this._init(src);
   }
-
-  async _init(srcPath: fs.PathLike | fs.ReadStream) {
+  async _init(srcPath: fs.ReadStream | string) {
+    if (typeof srcPath === "string") {
+      console.log(srcPath);
+      this._ext = getExtension(srcPath);
+      this._mimeType = this._ext?mime.getType(this._ext):null
+      this._originalFileName = getFileName(srcPath)
+      console.log(this._ext, this._mimeType, this._originalFileName)
+    } else {
+      // @ts-expect-error technically fs.ReadStream.path could be a buffer
+      // but our implementation in FileClient guarentees a string here
+      this._ext = srcPath.path.split(".")[-1];
+      //@ts-expect-error see above
+      this._mimeType = mime.getType(this._ext);
+      // @ts-expect-error see above
+      this._originalFileName = srcPath.path.split("/")[-1];
+    }
     // generate path:
     this.fileHash = await generateFileName(srcPath);
     this._filePath = `${FileClient.tempFolder}/${this.fileHash}`;

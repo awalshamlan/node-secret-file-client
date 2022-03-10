@@ -27,7 +27,8 @@ export default class FileClient extends EventEmitter {
         downloadLimit?: number;
         errorLimit?: number;
     }): void;
-    addFile(srcPath: fs.PathLike | fs.ReadStream): Promise<string>;
-    getFile(hash: string): fs.ReadStream;
+    addFile(srcPath: string | fs.ReadStream): Promise<string>;
+    getFile(hash: string): FileCounter;
+    getFileReadStream(hash: string): fs.ReadStream;
 }
 export {};

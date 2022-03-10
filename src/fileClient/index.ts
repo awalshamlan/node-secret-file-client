@@ -76,7 +76,7 @@ export default class FileClient extends EventEmitter {
     }
   }
 
-  addFile(srcPath: fs.PathLike | fs.ReadStream): Promise<string> {
+  addFile(srcPath: string | fs.ReadStream): Promise<string> {
     return new Promise((resolve, reject) => {
       var newFile = new FileCounter(this, srcPath);
       newFile.on("birth", () => {
@@ -91,6 +91,9 @@ export default class FileClient extends EventEmitter {
   }
 
   getFile(hash: string) {
-    return this.items[hash].getReadStream();
+    return this.items[hash];
+  }
+  getFileReadStream(hash:string){
+    return this.items[hash].getReadStream()
   }
 }

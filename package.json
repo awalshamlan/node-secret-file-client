@@ -1,6 +1,6 @@
 {
   "name": "secretfileclient",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "A node flie client which allows setting limits in terms of (file age in ms, number of times the file may be downloaded, and number of errors the file is allowed to experience). Once one of these limits is reached; the file is removed from the file system and is cleared from memory.",
   "main": "./lib/cjs/index.js",
   "module": "./lib/esm/index.js",
